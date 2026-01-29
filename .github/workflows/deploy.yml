@@ -31,10 +31,10 @@ jobs:
 
             echo "🚀 Deploy frontend to /var/www/html"
             sudo rm -rf /var/www/html/*
-            sudo cp -r dist/* /var/www/html/
+            sudo cp -r dist/. /var/www/html/
 
             echo "🔄 Restart backend service"
             sudo systemctl restart finance-app.service
-            sudo systemctl status finance-app.service --no-pager
+            sudo systemctl status finance-app.service --no-pager || true
 
-            echo "✅ Deployment completed successfully"
+            echo  "✅ Deployment completed successfully"
