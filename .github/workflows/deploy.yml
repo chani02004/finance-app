@@ -5,37 +5,78 @@ on:
     branches:
       - main
 
+env:
+  ACTIONS_STEP_DEBUG: true  # debug כולל לכל ה־steps
+
 jobs:
   build-and-deploy:
     runs-on: ubuntu-latest
 
     steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: 20
+
+      - name: Show Node/NPM versions
+        run: |
+          node -v
+          npm -v
+
+      - name: List repo files
+        run: |
+          echo "📂 Current directory: $(pwd)"
+          ls -al
+
+      - name: Install frontend dependencies
+        working-directory: ./client
+        run: |
+          echo "💻 Installing dependencies"
+          npm ci
+          echo "✅ Dependencies installed"
+
+      - name: Build frontend
+        working-directory: ./client
+        run: |
+          echo "💻 Starting frontend build"
+          npm run build
+          echo "✅ Frontend build completed"
+          echo "📂 Dist folder content:"
+          ls -al dist
+
       - name: Deploy to EC2 and Restart Service
         uses: appleboy/ssh-action@master
         with:
           host: ${{ secrets.EC2_HOST }}
           username: ubuntu
           key: ${{ secrets.EC2_SSH_KEY }}
-          timeout: 30m
           script: |
             set -e
+            set -x  # הדפסת כל הפקודות שמריצים
 
             echo "🔁 Sync code with origin/main"
             cd /home/ubuntu/finance-app
             git fetch origin
             git reset --hard origin/main
+            echo "✅ Git reset completed"
 
-            echo "💻 Build frontend"
-            cd client
-            npm ci
-            npm run build
+            echo "💻 Check memory and disk"
+            free -h
+            df -h
+            echo "📂 List files in finance-app:"
+            ls -al
 
             echo "🚀 Deploy frontend to /var/www/html"
             sudo rm -rf /var/www/html/*
-            sudo cp -r dist/. /var/www/html/
+            sudo cp -r client/dist/* /var/www/html/
+            echo "✅ Frontend deployed"
 
             echo "🔄 Restart backend service"
             sudo systemctl restart finance-app.service
-            sudo systemctl status finance-app.service --no-pager || true
+            sudo systemctl status finance-app.service --no-pager
 
-            echo  "✅ Deployment completed successfully"
+            echo "✅ Deployment completed successfully"
+
